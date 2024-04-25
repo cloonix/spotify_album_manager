@@ -1,3 +1,7 @@
+# Project exclusions
+albums*.db
+
+# Default github python .gitignore part
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
