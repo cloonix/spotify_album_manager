@@ -49,10 +49,10 @@ class SpotifyManagerGUI:
         self.artist_tree.bind("<<TreeviewSelect>>", self.on_artist_select)
 
         # Tags Tree
-        self.tags_tree = ttk.Treeview(navigation_frame, columns=["Tag"], show="headings")
-        self.tags_tree.heading("Tag", text="Tag")
-        self.tags_tree.pack(side="left", fill="both", expand=True)
-        self.tags_tree.bind("<<TreeviewSelect>>", self.on_tag_select)
+        self.genres_tree = ttk.Treeview(navigation_frame, columns=["Tag"], show="headings")
+        self.genres_tree.heading("Tag", text="Tag")
+        self.genres_tree.pack(side="left", fill="both", expand=True)
+        self.genres_tree.bind("<<TreeviewSelect>>", self.on_tag_select)
 
         # Label and entry for Album URL
         ttk.Label(input_frame, text="Album URL:").pack(side="left", padx=(10, 2))
@@ -61,8 +61,8 @@ class SpotifyManagerGUI:
 
         # Label and entry for Tags
         ttk.Label(input_frame, text="Tags:").pack(side="left", padx=(10, 2))
-        self.tags_entry = ttk.Entry(input_frame, width=20)
-        self.tags_entry.pack(side="left", padx=(2, 10))
+        self.genres_entry = ttk.Entry(input_frame, width=20)
+        self.genres_entry.pack(side="left", padx=(2, 10))
 
         add_button = ttk.Button(input_frame, text="Add Album", command=self.add_album)
         add_button.pack(side="left")
@@ -77,7 +77,7 @@ class SpotifyManagerGUI:
         load_button.pack(side="right")
 
         self.populate_artist_tree()
-        self.populate_tags_tree()
+        self.populate_genres_tree()
 
     def populate_artist_tree(self):
         """Populates the artist tree with artist names."""
@@ -86,24 +86,24 @@ class SpotifyManagerGUI:
         for artist in artists:
             self.artist_tree.insert('', 'end', text=artist, values=(artist,))
 
-    def populate_tags_tree(self):
-        """Populates the tags tree with tags."""
-        self.tags_tree.delete(*self.tags_tree.get_children())  # Clear existing entries
-        tags = db_manager.fetch_tags(conn)  # Fetch unique tags
-        for tag in tags:
-            self.tags_tree.insert('', 'end', text=tag, values=(tag,))
+    def populate_genres_tree(self):
+        """Populates the genres tree with genres."""
+        self.genres_tree.delete(*self.genres_tree.get_children())  # Clear existing entries
+        genres = db_manager.fetch_genres(conn)  # Fetch unique genres
+        for tag in genres:
+            self.genres_tree.insert('', 'end', text=tag, values=(tag,))
 
     def on_artist_select(self):
         """Updates the album list based on selected artist."""
         selected_artist = self.artist_tree.item(self.artist_tree.selection())['values'][0]
-        albums = db_manager.fetch_albums_by_artist(conn, selected_artist)
-        self.update_album_list(albums)
+        items = db_manager.fetch_items_by_artist(conn, selected_artist)
+        self.update_album_list(items)
 
     def on_tag_select(self):
         """Updates the album list based on selected tag."""
-        selected_tag = self.tags_tree.item(self.tags_tree.selection())['values'][0]
-        albums = db_manager.fetch_albums_by_tag(conn, selected_tag)
-        self.update_album_list(albums)
+        selected_tag = self.genres_tree.item(self.genres_tree.selection())['values'][0]
+        items = db_manager.fetch_items_by_tag(conn, selected_tag)
+        self.update_album_list(items)
 
     def open_url(self, item_id):
         """Open the album URL from the list."""
@@ -111,40 +111,40 @@ class SpotifyManagerGUI:
         url = item['values'][6]  # Assuming URL is in the last column
         webbrowser.open(url)
 
-    def update_album_list(self, albums):
-        """Update the album list view with the given albums."""
+    def update_album_list(self, items):
+        """Update the album list view with the given items."""
         self.album_list.delete(*self.album_list.get_children())
-        for album in albums:
+        for album in items:
             # Adding a trash bin icon or text in the first column for deletion
             self.album_list.insert('', 'end', values=("🗑️",) + album)
 
-    def fetch_album_info(self, album_url):
+    def fetch_album_info(self, item_url):
         """Fetch album information from Spotify based on the URL."""
-        album_id = album_url.split("/")[-1].split("?")[0]
+        album_id = item_url.split("/")[-1].split("?")[0]
         album_data = self.sp.album(album_id)
         release_year = album_data['release_date'].split("-")[0]
         return {
             "artist": album_data['artists'][0]['name'],
-            "album_name": album_data['name'],
+            "item_name": album_data['name'],
             "release_date": album_data['release_date'],
             "release_year": int(release_year),
-            "album_url": album_url
+            "item_url": item_url
         }
 
     def add_album(self):
-        """Add a new album from the URL and tags provided by the user."""
+        """Add a new album from the URL and genres provided by the user."""
         url = self.url_entry.get()
-        tags = self.tags_entry.get().split(',')
+        genres = self.genres_entry.get().split(',')
         album_info = self.fetch_album_info(url)
-        db_manager.insert_album_data(conn, album_info, tags)
+        db_manager.insert_album_data(conn, album_info, genres)
         self.refresh_views()
 
     def refresh_views(self):
         """Refresh all GUI views to display current database contents."""
         self.populate_artist_tree()
-        self.populate_tags_tree()
-        albums = db_manager.fetch_albums(conn)  # Make sure this method exists in db_manager
-        self.update_album_list(albums)
+        self.populate_genres_tree()
+        items = db_manager.fetch_items(conn)  # Make sure this method exists in db_manager
+        self.update_album_list(items)
 
     def on_single_click(self, event):
         """Handle single clicks, specifically check if the delete icon was clicked."""
@@ -174,14 +174,14 @@ class SpotifyManagerGUI:
             self.refresh_views()
 
     def list_backups(self):
-        files = [f for f in os.listdir() if f.startswith('albums_') and f.endswith('.db')]
+        files = [f for f in os.listdir() if f.startswith('items_') and f.endswith('.db')]
         files.sort(key=lambda x: os.path.getmtime(x), reverse=True)  # Sort by most recent
         return files[:3]  # Return the last three backups
 
     def backup_database(self):
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        source_db = 'albums.db'  # Assuming this is the name and path of your main database file
-        backup_db = f'albums_{current_time}.db'  # Backup file name with timestamp
+        source_db = 'collection.db'  # Assuming this is the name and path of your main database file
+        backup_db = f'items_{current_time}.db'  # Backup file name with timestamp
         shutil.copy(source_db, backup_db)  # Copy the source database to the new backup file
         print(f"Backup created: {backup_db}")  # Optional: Print confirmation to the console
 
@@ -221,7 +221,7 @@ class SpotifyManagerGUI:
         cancel_button.pack(pady=(0, 10))
 
     def load_backup(self, backup_file):
-        shutil.copy(backup_file, 'albums.db')  # Replace the current database with the backup
+        shutil.copy(backup_file, 'collection.db')  # Replace the current database with the backup
         self.reload_gui_content()  # Reload the GUI content
 
     def reload_gui_content(self):
