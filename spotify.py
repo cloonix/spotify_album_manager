@@ -6,6 +6,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 import os
+import re
 import db_manager
 import shutil
 from datetime import datetime
@@ -15,7 +16,7 @@ load_dotenv()
 class SpotifyManagerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Spotify Album Manager")
+        self.root.title("Spotify item Manager")
         self.setup_spotify_client()
         self.setup_gui()
 
@@ -28,19 +29,25 @@ class SpotifyManagerGUI:
 
     def setup_gui(self):
         """Sets up the GUI components."""
-        list_frame = ttk.Frame(self.root)
-        list_frame.pack(fill="both", expand=True, side="top")
         navigation_frame = ttk.Frame(self.root)
         navigation_frame.pack(fill="both", expand=True, side="top")
+        list_frame = ttk.Frame(self.root)
+        list_frame.pack(fill="both", expand=True, side="top")
         input_frame = ttk.Frame(self.root)
         input_frame.pack(fill="x", side="bottom")
 
-        self.album_list = ttk.Treeview(list_frame, columns=("Delete", "ID", "Artist", "Album Name", "Release Date", "Release Year", "URL"), show="headings")
-        for col in ["Delete", "ID", "Artist", "Album Name", "Release Date", "Release Year", "URL"]:
-            self.album_list.heading(col, text=col)
-        self.album_list.pack(side="left", fill="both", expand=True)
-        self.album_list.bind("<1>", self.on_single_click)  # Bind left mouse click for delete
-        self.album_list.bind("<Double-1>", self.on_double_click)  # Bind double click for opening URL
+        self.item_list = ttk.Treeview(list_frame, columns=("Delete", "ID", "Artist", "item Name", "Release Date", "Release Year", "URL"), show="headings")
+        for col in ["Delete", "ID", "Artist", "item Name", "Release Date", "Release Year", "URL"]:
+            self.item_list.heading(col, text=col)
+        self.item_list.pack(side="left", fill="both", expand=True)
+        self.item_list.bind("<1>", self.on_single_click)  # Bind left mouse click for delete
+        self.item_list.bind("<Double-1>", self.on_double_click)  # Bind double click for opening URL
+
+        # Genre Tree
+        self.genres_tree = ttk.Treeview(navigation_frame, columns=["Genre"], show="headings")
+        self.genres_tree.heading("Genre", text="Genre")
+        self.genres_tree.pack(side="left", fill="both", expand=True)
+        self.genres_tree.bind("<<TreeviewSelect>>", self.on_genre_select)
 
         # Artist Tree
         self.artist_tree = ttk.Treeview(navigation_frame, columns=["Artist"], show="headings")
@@ -48,23 +55,23 @@ class SpotifyManagerGUI:
         self.artist_tree.pack(side="left", fill="both", expand=True)
         self.artist_tree.bind("<<TreeviewSelect>>", self.on_artist_select)
 
-        # Tags Tree
-        self.genres_tree = ttk.Treeview(navigation_frame, columns=["Tag"], show="headings")
-        self.genres_tree.heading("Tag", text="Tag")
-        self.genres_tree.pack(side="left", fill="both", expand=True)
-        self.genres_tree.bind("<<TreeviewSelect>>", self.on_tag_select)
+        # Type Tree
+        self.type_tree = ttk.Treeview(navigation_frame, columns=["Type"], show="headings")
+        self.type_tree.heading("Type", text="Type")
+        self.type_tree.pack(side="left", fill="both", expand=True)
+        self.type_tree.bind("<<TreeviewSelect>>", self.on_type_select)
 
-        # Label and entry for Album URL
-        ttk.Label(input_frame, text="Album URL:").pack(side="left", padx=(10, 2))
+        # Label and entry for item URL
+        ttk.Label(input_frame, text="item URL:").pack(side="left", padx=(10, 2))
         self.url_entry = ttk.Entry(input_frame, width=50)
         self.url_entry.pack(side="left", padx=(2, 10))
 
-        # Label and entry for Tags
-        ttk.Label(input_frame, text="Tags:").pack(side="left", padx=(10, 2))
+        # Label and entry for Genre
+        ttk.Label(input_frame, text="Genre:").pack(side="left", padx=(10, 2))
         self.genres_entry = ttk.Entry(input_frame, width=20)
         self.genres_entry.pack(side="left", padx=(2, 10))
 
-        add_button = ttk.Button(input_frame, text="Add Album", command=self.add_album)
+        add_button = ttk.Button(input_frame, text="Add item", command=self.add_item)
         add_button.pack(side="left")
 
         add_button = ttk.Button(input_frame, text="Close", command=self.close_application)
@@ -78,6 +85,7 @@ class SpotifyManagerGUI:
 
         self.populate_artist_tree()
         self.populate_genres_tree()
+        self.populate_type_tree()
 
     def populate_artist_tree(self):
         """Populates the artist tree with artist names."""
@@ -86,91 +94,119 @@ class SpotifyManagerGUI:
         for artist in artists:
             self.artist_tree.insert('', 'end', text=artist, values=(artist,))
 
+    def populate_type_tree(self):
+        """Populates the type tree."""
+        self.type_tree.delete(*self.type_tree.get_children())  # Clear existing entries
+        types = db_manager.fetch_types(conn)  # Fetch unique types
+        for type in types:
+            self.type_tree.insert('', 'end', text=type, values=(type,))
+
     def populate_genres_tree(self):
         """Populates the genres tree with genres."""
         self.genres_tree.delete(*self.genres_tree.get_children())  # Clear existing entries
         genres = db_manager.fetch_genres(conn)  # Fetch unique genres
-        for tag in genres:
-            self.genres_tree.insert('', 'end', text=tag, values=(tag,))
+        for genre in genres:
+            self.genres_tree.insert('', 'end', text=genre, values=(genre,))
 
-    def on_artist_select(self):
-        """Updates the album list based on selected artist."""
+    def on_artist_select(self, event):
+        """Updates the item list based on selected artist."""
         selected_artist = self.artist_tree.item(self.artist_tree.selection())['values'][0]
         items = db_manager.fetch_items_by_artist(conn, selected_artist)
-        self.update_album_list(items)
+        self.update_item_list(items)
 
-    def on_tag_select(self):
-        """Updates the album list based on selected tag."""
-        selected_tag = self.genres_tree.item(self.genres_tree.selection())['values'][0]
-        items = db_manager.fetch_items_by_tag(conn, selected_tag)
-        self.update_album_list(items)
+    def on_genre_select(self, event):
+        """Updates the item list based on selected genre."""
+        selected_genre = self.genres_tree.item(self.genres_tree.selection())['values'][0]
+        items = db_manager.fetch_items_by_genre(conn, selected_genre)
+        self.update_item_list(items)
+
+    def on_type_select(self, event):
+        """Updates the type list based on selected type."""
+        selected_type = self.type_tree.item(self.type_tree.selection())['values'][0]
+        items = db_manager.fetch_items_by_type(conn, selected_type)
+        self.update_item_list(items)
 
     def open_url(self, item_id):
-        """Open the album URL from the list."""
-        item = self.album_list.item(item_id)
+        """Open the item URL from the list."""
+        item = self.item_list.item(item_id)
         url = item['values'][6]  # Assuming URL is in the last column
         webbrowser.open(url)
 
-    def update_album_list(self, items):
-        """Update the album list view with the given items."""
-        self.album_list.delete(*self.album_list.get_children())
-        for album in items:
+    def update_item_list(self, items):
+        """Update the item list view with the given items."""
+        self.item_list.delete(*self.item_list.get_children())
+        for item in items:
             # Adding a trash bin icon or text in the first column for deletion
-            self.album_list.insert('', 'end', values=("🗑️",) + album)
+            self.item_list.insert('', 'end', values=("🗑️",) + item)
 
-    def fetch_album_info(self, item_url):
-        """Fetch album information from Spotify based on the URL."""
-        album_id = item_url.split("/")[-1].split("?")[0]
-        album_data = self.sp.album(album_id)
-        release_year = album_data['release_date'].split("-")[0]
-        return {
-            "artist": album_data['artists'][0]['name'],
-            "item_name": album_data['name'],
-            "release_date": album_data['release_date'],
-            "release_year": int(release_year),
-            "item_url": item_url
-        }
+    def get_spotify_type_and_id(self, url):
+        pattern = r"open\.spotify\.com\/(album|track)\/([a-zA-Z0-9]+)"
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1), match.group(2)
+        return None, None
 
-    def add_album(self):
-        """Add a new album from the URL and genres provided by the user."""
+    def fetch_item_info(self, url):
+        item_type, item_id = self.get_spotify_type_and_id(url)
+        if item_type == "album":
+            item_data = self.sp.album(item_id)
+        elif item_type == "track":
+            item_data = self.sp.track(item_id)
+        else:
+            return None  # Handle error or invalid URL
+        return item_data
+
+    def add_item(self):
         url = self.url_entry.get()
         genres = self.genres_entry.get().split(',')
-        album_info = self.fetch_album_info(url)
-        db_manager.insert_album_data(conn, album_info, genres)
-        self.refresh_views()
+        item_info = self.fetch_item_info(url)
+        if item_info:
+            # Create a dictionary to insert into the database
+            item_data = {
+                'artist': item_info['artists'][0]['name'],
+                'item_name': item_info['name'],
+                'release_date': item_info.get('release_date', ''),
+                'release_year': item_info.get('release_date', '')[:4],
+                'item_url': url,
+                'type': item_info['type']
+            }
+            db_manager.insert_item_data(conn, item_data, genres)
+            self.refresh_views()
+        else:
+            print("Failed to fetch item info")
 
     def refresh_views(self):
         """Refresh all GUI views to display current database contents."""
         self.populate_artist_tree()
         self.populate_genres_tree()
         items = db_manager.fetch_items(conn)  # Make sure this method exists in db_manager
-        self.update_album_list(items)
+        self.update_item_list(items)
 
     def on_single_click(self, event):
         """Handle single clicks, specifically check if the delete icon was clicked."""
-        region = self.album_list.identify("region", event.x, event.y)
+        region = self.item_list.identify("region", event.x, event.y)
         if region == "cell":
-            column = self.album_list.identify_column(event.x)
+            column = self.item_list.identify_column(event.x)
             if column == "#1":  # Check if the delete column was clicked
-                item_id = self.album_list.identify_row(event.y)
+                item_id = self.item_list.identify_row(event.y)
                 self.confirm_delete(item_id)
 
     def on_double_click(self, event):
         """Handle double-click events to open URLs."""
-        region = self.album_list.identify("region", event.x, event.y)
+        region = self.item_list.identify("region", event.x, event.y)
         if region == "cell":
-            column = self.album_list.identify_column(event.x)
+            column = self.item_list.identify_column(event.x)
             if column != "#1":  # Ensure the click is not on the delete icon
-                item_id = self.album_list.identify_row(event.y)
+                item_id = self.item_list.identify_row(event.y)
                 self.open_url(item_id)
 
     def confirm_delete(self, item_id):
-        """Confirm deletion of an album."""
-        item = self.album_list.item(item_id)
-        album_id = item['values'][1]  # Assuming ID is in the second column
-        response = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this album?")
+        """Confirm deletion of an item."""
+        item = self.item_list.item(item_id)
+        item_id = item['values'][1]  # Assuming ID is in the second column
+        response = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this item?")
         if response:
-            db_manager.delete_album(conn, album_id)
+            db_manager.delete_item(conn, item_id)
             self.refresh_views()
 
     def list_backups(self):

@@ -16,7 +16,8 @@ def create_tables(conn):
             item_name TEXT NOT NULL,
             release_date TEXT,
             release_year INTEGER,
-            item_url TEXT UNIQUE
+            item_url TEXT UNIQUE,
+            type
         )
     ''')
     c.execute('''
@@ -40,7 +41,7 @@ def fetch_items(conn):
     """Fetch all items sorted by artist name."""
     c = conn.cursor()
     # Ensure the order here matches what is expected in your GUI
-    c.execute("SELECT id, artist, item_name, release_date, release_year, item_url FROM items ORDER BY artist")
+    c.execute("SELECT id, artist, item_name, release_date, release_year, item_url, type FROM items ORDER BY artist")
     return c.fetchall()
 
 def fetch_artists(conn):
@@ -54,6 +55,12 @@ def fetch_genres(conn):
     c = conn.cursor()
     c.execute("SELECT DISTINCT genre FROM genres ORDER BY genre")
     return [genre[0] for genre in c.fetchall()]
+
+def fetch_types(conn):
+    """Fetch all types."""
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT type FROM items")
+    return [type[0] for type in c.fetchall()]
 
 def fetch_items_by_artist(conn, artist):
     """Fetch items by the specified artist."""
@@ -73,18 +80,27 @@ def fetch_items_by_genre(conn, genre):
     ''', (genre,))
     return c.fetchall()
 
-def insert_item_data(conn, item_info, genres):
-    """Insert new album data into the items table and associate genres."""
+def fetch_items_by_type(conn, type_name):
+    """ Fetch items from the database filtered by type. """
     c = conn.cursor()
-    # Check if the album already exists by URL to prevent duplicates
+    c.execute('''
+        SELECT items.* FROM items
+        WHERE type = ?
+    ''', (type_name,))
+    return c.fetchall()
+
+def insert_item_data(conn, item_info, genres):
+    """Insert new item data into the items table and associate genres."""
+    c = conn.cursor()
+    # Check if the item already exists by URL to prevent duplicates
     c.execute('SELECT id FROM items WHERE item_url = ?', (item_info['item_url'],))
     if c.fetchone():
-        print("Album already exists in the database.")
+        print("item already exists in the database.")
         return
 
     c.execute('''
-        INSERT INTO items (artist, item_name, release_date, release_year, item_url)
-        VALUES (:artist, :item_name, :release_date, :release_year, :item_url)
+        INSERT INTO items (artist, item_name, release_date, release_year, item_url, type)
+        VALUES (:artist, :item_name, :release_date, :release_year, :item_url, :type)
     ''', item_info)
     item_id = c.lastrowid
 
@@ -95,8 +111,8 @@ def insert_item_data(conn, item_info, genres):
         c.execute('INSERT INTO item_genres (item_id, genre_id) VALUES (?, ?)', (item_id, genre_id))
     conn.commit()
 
-def delete_album(conn, item_id):
-    """Delete an album and clean up related genres and item_genres entries."""
+def delete_item(conn, item_id):
+    """Delete an item and clean up related genres and item_genres entries."""
     c = conn.cursor()
     c.execute("DELETE FROM item_genres WHERE item_id = ?", (item_id,))
     c.execute("DELETE FROM items WHERE id = ?", (item_id,))
