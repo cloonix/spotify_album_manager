@@ -140,7 +140,7 @@ class SpotifyManagerGUI:
             self.item_list.insert('', 'end', values=("🗑️",) + item)
 
     def get_spotify_type_and_id(self, url):
-        pattern = r"open\.spotify\.com\/(album|track)\/([a-zA-Z0-9]+)"
+        pattern = r"open\.spotify\.com\/(album|track|playlist)\/([a-zA-Z0-9]+)"
         match = re.search(pattern, url)
         if match:
             return match.group(1), match.group(2)
@@ -152,6 +152,8 @@ class SpotifyManagerGUI:
             item_data = self.sp.album(item_id)
         elif item_type == "track":
             item_data = self.sp.track(item_id)
+        elif item_type == "playlist":
+            item_data = self.sp.playlist(item_id)
         else:
             return None  # Handle error or invalid URL
         return item_data
@@ -160,7 +162,7 @@ class SpotifyManagerGUI:
         url = self.url_entry.get()
         genres = self.genres_entry.get().split(',')
         item_info = self.fetch_item_info(url)
-        if item_info:
+        if item_info['type'] == "album" or item_info['type'] == "track":
             # Create a dictionary to insert into the database
             item_data = {
                 'artist': item_info['artists'][0]['name'],
@@ -172,6 +174,15 @@ class SpotifyManagerGUI:
             }
             db_manager.insert_item_data(conn, item_data, genres)
             self.refresh_views()
+        elif item_info['type'] == "playlist":
+            item_data = {
+                'artist': "Various",
+                'item_name': item_info['name'],
+                'item_url': url,
+                'type': "playlist"
+            }
+            db_manager.insert_item_data(conn, item_data, genres)
+            self.refresh_views()
         else:
             print("Failed to fetch item info")
 
@@ -179,6 +190,7 @@ class SpotifyManagerGUI:
         """Refresh all GUI views to display current database contents."""
         self.populate_artist_tree()
         self.populate_genres_tree()
+        self.populate_type_tree()
         items = db_manager.fetch_items(conn)  # Make sure this method exists in db_manager
         self.update_item_list(items)
 
