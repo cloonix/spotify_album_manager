@@ -112,12 +112,20 @@ class SpotifyManagerGUI:
         """Updates the item list based on selected artist."""
         selected_artist = self.artist_tree.item(self.artist_tree.selection())['values'][0]
         items = db_manager.fetch_items_by_artist(conn, selected_artist)
+        types = db_manager.fetch_types_by_artist(conn, selected_artist)  # Fetch artists from the database
+        self.type_tree.delete(*self.type_tree.get_children())
+        for type in types:
+            self.type_tree.insert('', 'end', text=type, values=(type,))
         self.update_item_list(items)
 
     def on_genre_select(self, event):
         """Updates the item list based on selected genre."""
         selected_genre = self.genres_tree.item(self.genres_tree.selection())['values'][0]
         items = db_manager.fetch_items_by_genre(conn, selected_genre)
+        artists = db_manager.fetch_artists_by_genre(conn, selected_genre)  # Fetch artists from the database
+        self.artist_tree.delete(*self.artist_tree.get_children())
+        for artist in artists:
+            self.artist_tree.insert('', 'end', text=artist, values=(artist,))
         self.update_item_list(items)
 
     def on_type_select(self, event):

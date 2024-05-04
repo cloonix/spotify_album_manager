@@ -80,6 +80,18 @@ def fetch_items_by_genre(conn, genre):
     ''', (genre,))
     return c.fetchall()
 
+def fetch_artists_by_genre(conn, genre):
+    """Fetch all unique artists associated with the specified genre."""
+    c = conn.cursor()
+    c.execute('''
+        SELECT DISTINCT items.artist FROM items
+        JOIN item_genres ON items.id = item_genres.item_id
+        JOIN genres ON genres.id = item_genres.genre_id
+        WHERE genres.genre = ?
+        ORDER BY items.artist
+    ''', (genre,))
+    return [artist[0] for artist in c.fetchall()]
+
 def fetch_items_by_type(conn, type_name):
     """ Fetch items from the database filtered by type. """
     c = conn.cursor()
@@ -88,6 +100,16 @@ def fetch_items_by_type(conn, type_name):
         WHERE type = ?
     ''', (type_name,))
     return c.fetchall()
+
+def fetch_types_by_artist(conn, artist):
+    """Fetch all unique item types associated with the specified artist."""
+    c = conn.cursor()
+    c.execute('''
+        SELECT DISTINCT type FROM items
+        WHERE artist = ?
+        ORDER BY type
+    ''', (artist,))
+    return [type[0] for type in c.fetchall()]
 
 def insert_item_data(conn, item_info, genres):
     """Insert new item data into the items table and associate genres."""
