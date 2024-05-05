@@ -1,5 +1,5 @@
 # Project exclusions
-collection*.db
+*.db
 
 # Default github python .gitignore part
 # Byte-compiled / optimized / DLL files
