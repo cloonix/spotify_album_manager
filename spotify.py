@@ -186,6 +186,8 @@ class SpotifyManagerGUI:
             item_data = {
                 'artist': "Various",
                 'item_name': item_info['name'],
+                'release_date': "",
+                'release_year': "",
                 'item_url': url,
                 'type': "playlist"
             }
@@ -237,7 +239,7 @@ class SpotifyManagerGUI:
     def backup_database(self):
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         source_db = 'collection.db'  # Assuming this is the name and path of your main database file
-        backup_db = f'items_{current_time}.db'  # Backup file name with timestamp
+        backup_db = f'collection_{current_time}.db'  # Backup file name with timestamp
         shutil.copy(source_db, backup_db)  # Copy the source database to the new backup file
         print(f"Backup created: {backup_db}")  # Optional: Print confirmation to the console
 
