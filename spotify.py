@@ -13,6 +13,7 @@ from datetime import datetime
 
 load_dotenv()
 
+
 class SpotifyManagerGUI:
     def __init__(self, root):
         self.root = root
@@ -22,9 +23,11 @@ class SpotifyManagerGUI:
 
     def setup_spotify_client(self):
         """Setup the Spotify API client."""
-        client_id = os.getenv('SPOTIFY_CLIENT_ID')
-        client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-        client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        client_credentials_manager = SpotifyClientCredentials(
+            client_id=client_id, client_secret=client_secret
+        )
         self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
     def setup_gui(self):
@@ -36,27 +39,57 @@ class SpotifyManagerGUI:
         input_frame = ttk.Frame(self.root)
         input_frame.pack(fill="x", side="bottom")
 
-        self.item_list = ttk.Treeview(list_frame, columns=("Delete", "ID", "Artist", "item Name", "Release Date", "Release Year", "URL"), show="headings")
-        for col in ["Delete", "ID", "Artist", "item Name", "Release Date", "Release Year", "URL"]:
+        self.item_list = ttk.Treeview(
+            list_frame,
+            columns=(
+                "Delete",
+                "ID",
+                "Artist",
+                "item Name",
+                "Release Date",
+                "Release Year",
+                "URL",
+            ),
+            show="headings",
+        )
+        for col in [
+            "Delete",
+            "ID",
+            "Artist",
+            "item Name",
+            "Release Date",
+            "Release Year",
+            "URL",
+        ]:
             self.item_list.heading(col, text=col)
         self.item_list.pack(side="left", fill="both", expand=True)
-        self.item_list.bind("<1>", self.on_single_click)  # Bind left mouse click for delete
-        self.item_list.bind("<Double-1>", self.on_double_click)  # Bind double click for opening URL
+        self.item_list.bind(
+            "<1>", self.on_single_click
+        )  # Bind left mouse click for delete
+        self.item_list.bind(
+            "<Double-1>", self.on_double_click
+        )  # Bind double click for opening URL
 
         # Genre Tree
-        self.genres_tree = ttk.Treeview(navigation_frame, columns=["Genre"], show="headings")
+        self.genres_tree = ttk.Treeview(
+            navigation_frame, columns=["Genre"], show="headings"
+        )
         self.genres_tree.heading("Genre", text="Genre")
         self.genres_tree.pack(side="left", fill="both", expand=True)
         self.genres_tree.bind("<<TreeviewSelect>>", self.on_genre_select)
 
         # Artist Tree
-        self.artist_tree = ttk.Treeview(navigation_frame, columns=["Artist"], show="headings")
+        self.artist_tree = ttk.Treeview(
+            navigation_frame, columns=["Artist"], show="headings"
+        )
         self.artist_tree.heading("Artist", text="Artist")
         self.artist_tree.pack(side="left", fill="both", expand=True)
         self.artist_tree.bind("<<TreeviewSelect>>", self.on_artist_select)
 
         # Type Tree
-        self.type_tree = ttk.Treeview(navigation_frame, columns=["Type"], show="headings")
+        self.type_tree = ttk.Treeview(
+            navigation_frame, columns=["Type"], show="headings"
+        )
         self.type_tree.heading("Type", text="Type")
         self.type_tree.pack(side="left", fill="both", expand=True)
         self.type_tree.bind("<<TreeviewSelect>>", self.on_type_select)
@@ -74,10 +107,14 @@ class SpotifyManagerGUI:
         add_button = ttk.Button(input_frame, text="Add item", command=self.add_item)
         add_button.pack(side="left")
 
-        add_button = ttk.Button(input_frame, text="Close", command=self.close_application)
+        add_button = ttk.Button(
+            input_frame, text="Close", command=self.close_application
+        )
         add_button.pack(side="right")
 
-        backup_button = ttk.Button(input_frame, text="Back Up", command=self.backup_database)
+        backup_button = ttk.Button(
+            input_frame, text="Back Up", command=self.backup_database
+        )
         backup_button.pack(side="right")  # Adjust placement as needed
 
         load_button = ttk.Button(input_frame, text="Load", command=self.choose_backup)
@@ -89,55 +126,67 @@ class SpotifyManagerGUI:
 
     def populate_artist_tree(self):
         """Populates the artist tree with artist names."""
-        self.artist_tree.delete(*self.artist_tree.get_children())  # Clear existing entries
+        self.artist_tree.delete(
+            *self.artist_tree.get_children()
+        )  # Clear existing entries
         artists = db_manager.fetch_artists(conn)  # Fetch unique artists
         for artist in artists:
-            self.artist_tree.insert('', 'end', text=artist, values=(artist,))
+            self.artist_tree.insert("", "end", text=artist, values=(artist,))
 
     def populate_type_tree(self):
         """Populates the type tree."""
         self.type_tree.delete(*self.type_tree.get_children())  # Clear existing entries
         types = db_manager.fetch_types(conn)  # Fetch unique types
         for type in types:
-            self.type_tree.insert('', 'end', text=type, values=(type,))
+            self.type_tree.insert("", "end", text=type, values=(type,))
 
     def populate_genres_tree(self):
         """Populates the genres tree with genres."""
-        self.genres_tree.delete(*self.genres_tree.get_children())  # Clear existing entries
+        self.genres_tree.delete(
+            *self.genres_tree.get_children()
+        )  # Clear existing entries
         genres = db_manager.fetch_genres(conn)  # Fetch unique genres
         for genre in genres:
-            self.genres_tree.insert('', 'end', text=genre, values=(genre,))
+            self.genres_tree.insert("", "end", text=genre, values=(genre,))
 
     def on_artist_select(self, event):
         """Updates the item list based on selected artist."""
-        selected_artist = self.artist_tree.item(self.artist_tree.selection())['values'][0]
+        selected_artist = self.artist_tree.item(self.artist_tree.selection())["values"][
+            0
+        ]
         items = db_manager.fetch_items_by_artist(conn, selected_artist)
-        types = db_manager.fetch_types_by_artist(conn, selected_artist)  # Fetch artists from the database
+        types = db_manager.fetch_types_by_artist(
+            conn, selected_artist
+        )  # Fetch artists from the database
         self.type_tree.delete(*self.type_tree.get_children())
         for type in types:
-            self.type_tree.insert('', 'end', text=type, values=(type,))
+            self.type_tree.insert("", "end", text=type, values=(type,))
         self.update_item_list(items)
 
     def on_genre_select(self, event):
         """Updates the item list based on selected genre."""
-        selected_genre = self.genres_tree.item(self.genres_tree.selection())['values'][0]
+        selected_genre = self.genres_tree.item(self.genres_tree.selection())["values"][
+            0
+        ]
         items = db_manager.fetch_items_by_genre(conn, selected_genre)
-        artists = db_manager.fetch_artists_by_genre(conn, selected_genre)  # Fetch artists from the database
+        artists = db_manager.fetch_artists_by_genre(
+            conn, selected_genre
+        )  # Fetch artists from the database
         self.artist_tree.delete(*self.artist_tree.get_children())
         for artist in artists:
-            self.artist_tree.insert('', 'end', text=artist, values=(artist,))
+            self.artist_tree.insert("", "end", text=artist, values=(artist,))
         self.update_item_list(items)
 
     def on_type_select(self, event):
         """Updates the type list based on selected type."""
-        selected_type = self.type_tree.item(self.type_tree.selection())['values'][0]
+        selected_type = self.type_tree.item(self.type_tree.selection())["values"][0]
         items = db_manager.fetch_items_by_type(conn, selected_type)
         self.update_item_list(items)
 
     def open_url(self, item_id):
         """Open the item URL from the list."""
         item = self.item_list.item(item_id)
-        url = item['values'][6]  # Assuming URL is in the last column
+        url = item["values"][6]  # Assuming URL is in the last column
         webbrowser.open(url)
 
     def update_item_list(self, items):
@@ -145,7 +194,7 @@ class SpotifyManagerGUI:
         self.item_list.delete(*self.item_list.get_children())
         for item in items:
             # Adding a trash bin icon or text in the first column for deletion
-            self.item_list.insert('', 'end', values=("🗑️",) + item)
+            self.item_list.insert("", "end", values=("🗑️",) + item)
 
     def get_spotify_type_and_id(self, url):
         pattern = r"open\.spotify\.com\/(album|track|playlist)\/([a-zA-Z0-9]+)"
@@ -168,28 +217,28 @@ class SpotifyManagerGUI:
 
     def add_item(self):
         url = self.url_entry.get()
-        genres = self.genres_entry.get().split(',')
+        genres = self.genres_entry.get().split(",")
         item_info = self.fetch_item_info(url)
-        if item_info['type'] == "album" or item_info['type'] == "track":
+        if item_info["type"] == "album" or item_info["type"] == "track":
             # Create a dictionary to insert into the database
             item_data = {
-                'artist': item_info['artists'][0]['name'],
-                'item_name': item_info['name'],
-                'release_date': item_info.get('release_date', ''),
-                'release_year': item_info.get('release_date', '')[:4],
-                'item_url': url,
-                'type': item_info['type']
+                "artist": item_info["artists"][0]["name"],
+                "item_name": item_info["name"],
+                "release_date": item_info.get("release_date", ""),
+                "release_year": item_info.get("release_date", "")[:4],
+                "item_url": url,
+                "type": item_info["type"],
             }
             db_manager.insert_item_data(conn, item_data, genres)
             self.refresh_views()
-        elif item_info['type'] == "playlist":
+        elif item_info["type"] == "playlist":
             item_data = {
-                'artist': "Various",
-                'item_name': item_info['name'],
-                'release_date': "",
-                'release_year': "",
-                'item_url': url,
-                'type': "playlist"
+                "artist": "Various",
+                "item_name": item_info["name"],
+                "release_date": "",
+                "release_year": "",
+                "item_url": url,
+                "type": "playlist",
             }
             db_manager.insert_item_data(conn, item_data, genres)
             self.refresh_views()
@@ -201,7 +250,9 @@ class SpotifyManagerGUI:
         self.populate_artist_tree()
         self.populate_genres_tree()
         self.populate_type_tree()
-        items = db_manager.fetch_items(conn)  # Make sure this method exists in db_manager
+        items = db_manager.fetch_items(
+            conn
+        )  # Make sure this method exists in db_manager
         self.update_item_list(items)
 
     def on_single_click(self, event):
@@ -225,23 +276,35 @@ class SpotifyManagerGUI:
     def confirm_delete(self, item_id):
         """Confirm deletion of an item."""
         item = self.item_list.item(item_id)
-        item_id = item['values'][1]  # Assuming ID is in the second column
-        response = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this item?")
+        item_id = item["values"][1]  # Assuming ID is in the second column
+        response = messagebox.askyesno(
+            "Confirm Delete", "Are you sure you want to delete this item?"
+        )
         if response:
             db_manager.delete_item(conn, item_id)
             self.refresh_views()
 
     def list_backups(self):
-        files = [f for f in os.listdir() if f.startswith('items_') and f.endswith('.db')]
-        files.sort(key=lambda x: os.path.getmtime(x), reverse=True)  # Sort by most recent
+        files = [
+            f for f in os.listdir() if f.startswith("collection_") and f.endswith(".db")
+        ]
+        files.sort(
+            key=lambda x: os.path.getmtime(x), reverse=True
+        )  # Sort by most recent
         return files[:3]  # Return the last three backups
 
     def backup_database(self):
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        source_db = 'collection.db'  # Assuming this is the name and path of your main database file
-        backup_db = f'collection_{current_time}.db'  # Backup file name with timestamp
-        shutil.copy(source_db, backup_db)  # Copy the source database to the new backup file
-        print(f"Backup created: {backup_db}")  # Optional: Print confirmation to the console
+        current_time = datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )  # Format: YYYYMMDD_HHMMSS
+        source_db = "collection.db"  # Assuming this is the name and path of your main database file
+        backup_db = f"collection_{current_time}.db"  # Backup file name with timestamp
+        shutil.copy(
+            source_db, backup_db
+        )  # Copy the source database to the new backup file
+        print(
+            f"Backup created: {backup_db}"
+        )  # Optional: Print confirmation to the console
 
     def choose_backup(self):
         backups = self.list_backups()  # Get the list of backups
@@ -279,7 +342,9 @@ class SpotifyManagerGUI:
         cancel_button.pack(pady=(0, 10))
 
     def load_backup(self, backup_file):
-        shutil.copy(backup_file, 'collection.db')  # Replace the current database with the backup
+        shutil.copy(
+            backup_file, "collection.db"
+        )  # Replace the current database with the backup
         self.reload_gui_content()  # Reload the GUI content
 
     def reload_gui_content(self):
@@ -289,6 +354,7 @@ class SpotifyManagerGUI:
 
     def close_application(self):
         self.root.destroy()  # This will close the Tkinter application window
+
 
 if __name__ == "__main__":
     conn = db_manager.create_connection()
